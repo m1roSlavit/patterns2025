@@ -58,6 +58,8 @@ Bangkok,8280925,1569,5279,Thailand`;
 // }
 
 class City {
+  #collection;
+
   constructor(name, population, area, density, country) {
     this.name = name;
     this.population = population;
@@ -66,37 +68,55 @@ class City {
     this.country = country;
   }
 
-  static fromCsv(csvData) {
+  get crowding() {
+    return this.#collection.getCityCrowding(this);
+  }
+
+  toString() {
+    return (
+      this.name.padEnd(18) +
+      this.population.toString().padStart(10) +
+      this.area.toString().padStart(8) +
+      this.density.toString().padStart(8) +
+      this.country.padStart(18) +
+      this.crowding.toString().padStart(6)
+    );
+  }
+
+  assignToCollection(collection) {
+    this.#collection = collection;
+  }
+}
+
+class CitiesCollection {
+  constructor(cities = []) {
+    this.cities = cities;
+  }
+
+  appendCsvData(csvData) {
     const [_head, ...rows] = csvData.split('\n').map((row) => row.split(','));
 
-    return rows.map(
-      (row) =>
-        new City(
+    this.cities.push(
+      ...rows.map((row) => {
+        const city = new City(
           row[0],
           parseInt(row[1]),
           parseInt(row[2]),
           parseInt(row[3]),
           row[4]
-        )
+        );
+
+        city.assignToCollection(this);
+
+        return city;
+      })
     );
   }
-}
 
-class CitiesCollection {
-  constructor(cities) {
-    this.cities = cities;
-  }
-
-  getCitiesCrowdingMap = () => {
+  getCityCrowding = (city) => {
     let maxDensity = this.getMaxDensity();
 
-    const crowdingMap = {};
-
-    for (const city of this.cities) {
-      crowdingMap[city.name] = Math.round((city.density * 100) / maxDensity);
-    }
-
-    return crowdingMap;
+    return Math.round((city.density * 100) / maxDensity);
   };
 
   getMaxDensity() {
@@ -109,26 +129,18 @@ class CitiesCollection {
     return maxDensity;
   }
 
-  renderCitiesWithCrowding() {
-    const citiesCrowdingMap = this.getCitiesCrowdingMap();
+  render() {
     const sortedCities = this.cities.toSorted(
-      (r1, r2) => citiesCrowdingMap[r2.name] - citiesCrowdingMap[r1.name]
+      (r1, r2) => r2.crowding - r1.crowding
     );
     let output = '';
     for (const city of sortedCities) {
-      output +=
-        city.name.padEnd(18) +
-        city.population.toString().padStart(10) +
-        city.area.toString().padStart(8) +
-        city.density.toString().padStart(8) +
-        city.country.padStart(18) +
-        citiesCrowdingMap[city.name].toString().padStart(6) +
-        '\n';
+      output += city.toString() + '\n';
     }
     console.log(output);
   }
 }
 
-const cities = City.fromCsv(data);
-const citiesCollection = new CitiesCollection(cities);
-citiesCollection.renderCitiesWithCrowding();
+const citiesCollection = new CitiesCollection();
+citiesCollection.appendCsvData(data);
+citiesCollection.render();
